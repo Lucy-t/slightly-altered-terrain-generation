@@ -1,7 +1,7 @@
 package party.lemons.satg.mixins;
 
 import net.minecraft.util.math.noise.SimplexNoiseSampler;
-import net.minecraft.world.IWorld;
+import net.minecraft.world.WorldAccess;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.source.BiomeSource;
 import net.minecraft.world.gen.chunk.*;
@@ -14,14 +14,14 @@ import org.spongepowered.asm.mixin.Shadow;
 public abstract class OverworldChunkGeneratorMixin extends SurfaceChunkGenerator<OverworldChunkGeneratorConfig>
 {
 	@Shadow public abstract int getSeaLevel();
-	@Shadow public abstract double sampleNoise(int x, int y);
+	@Shadow public abstract double sampleDepthNoise(int x, int y);
 
-	@Shadow @Final private boolean amplified;
+	@Shadow @Final private OverworldChunkGeneratorConfig generatorConfig;
 	@Shadow @Final private static float[] BIOME_WEIGHT_TABLE;
 
-	public OverworldChunkGeneratorMixin(IWorld world, BiomeSource biomeSource, int verticalNoiseResolution, int horizontalNoiseResolution, int worldHeight, OverworldChunkGeneratorConfig config, boolean useSimplexNoise)
+	public OverworldChunkGeneratorMixin(BiomeSource biomeSource, long seed, OverworldChunkGeneratorConfig config, int horizontalNoiseResolution, int verticalNoiseResolution, int worldHeight, boolean useSimplexNoise)
 	{
-		super(world, biomeSource, verticalNoiseResolution, horizontalNoiseResolution, worldHeight, config, useSimplexNoise);
+		super(biomeSource, seed, config, horizontalNoiseResolution, verticalNoiseResolution, worldHeight, useSimplexNoise);
 	}
 
 
@@ -47,7 +47,7 @@ public abstract class OverworldChunkGeneratorMixin extends SurfaceChunkGenerator
 				float depth = originalDepth;
 				float scale = keepBiomeProportions(biome) ? biome.getScale() : getAdjustedScale(biome, x, z, xOffset, zOffset);
 
-				if (this.amplified && depth > 0.0F) {
+				if (this.generatorConfig.isOld() && depth > 0.0F) {
 					depth = 1.0F + depth * 2.0F;
 					scale = 1.0F + scale * 4.0F;
 				}
@@ -68,7 +68,7 @@ public abstract class OverworldChunkGeneratorMixin extends SurfaceChunkGenerator
 		g /= h;
 		f = f * 0.9F + 0.1F;
 		g = (g * 4.0F - 1.0F) / 8.0F;
-		noiseRange[0] = (double)g + this.sampleNoise(x, z);
+		noiseRange[0] = (double)g + this.sampleDepthNoise(x, z);
 		noiseRange[1] = f;
 		return noiseRange;
 	}
@@ -92,7 +92,7 @@ public abstract class OverworldChunkGeneratorMixin extends SurfaceChunkGenerator
 			return biome.getScale();
 		else
 		{
-			float adjustedScale = (float) Math.abs(sampleNoise(x + xOffset, z + zOffset) * 15F);
+			float adjustedScale = (float) Math.abs(sampleDepthNoise(x + xOffset, z + zOffset) * 15F);
 			return stealBiome.getScale() + adjustedScale;
 		}
 	}
